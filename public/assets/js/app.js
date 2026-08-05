@@ -70,13 +70,13 @@ $(function () {
                         <input class="form-check-input js-user-checkbox" type="checkbox" value="${user.id}" aria-label="Select ${escapeHtml(user.name_first)} ${escapeHtml(user.name_last)}">
                     </td>
                     <td>${escapeHtml(user.name_first)} ${escapeHtml(user.name_last)}</td>
-                    <td><span class="status-indicator ${statusClass}" aria-label="${statusLabel}" title="${statusLabel}"></span></td>
+                    <td class="text-center"><span class="status-indicator ${statusClass}" aria-label="${statusLabel}" title="${statusLabel}"></span></td>
                     <td><span class="badge text-bg-light border">${escapeHtml(user.role)}</span></td>
                     <td class="text-end">
-                        <button type="button" class="btn btn-sm btn-outline-primary js-edit-user" data-user-id="${user.id}" aria-label="Edit user">
+                        <button type="button" class="btn my-2 my-md-0 btn-sm btn-outline-primary js-edit-user" data-user-id="${user.id}" aria-label="Edit user">
                             <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger js-delete-user" data-user-id="${user.id}" aria-label="Delete user">
+                        <button type="button" class="btn my-2 my-md-0  btn-sm btn-outline-danger js-delete-user" data-user-id="${user.id}" aria-label="Delete user">
                             <i class="bi bi-trash" aria-hidden="true"></i>
                         </button>
                     </td>
