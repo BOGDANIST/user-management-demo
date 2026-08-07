@@ -50,38 +50,78 @@ $(function () {
         return $('<div>').text(value).html();
     }
 
-    function renderUsers(users) {
-        selectedUserIds.clear();
-        $selectAll.prop({ checked: false, indeterminate: false });
-        $('#user-count').text(`${users.length} ${users.length === 1 ? 'user' : 'users'}`);
+    function buildUserRow(user, checked = false) {
+        const statusClass = user.status ? 'is-active' : 'is-inactive';
+        const statusLabel = user.status ? 'Active' : 'Not active';
 
-        if (users.length === 0) {
-            $tableBody.html('<tr><td colspan="5" class="py-5 text-center text-body-secondary">No users found.</td></tr>');
-            return;
+        return `
+            <tr data-user-id="${user.id}">
+                <td>
+                    <input class="form-check-input js-user-checkbox" type="checkbox" value="${user.id}" aria-label="Select ${escapeHtml(user.name_first)} ${escapeHtml(user.name_last)}" ${checked ? 'checked' : ''}>
+                </td>
+                <td>${escapeHtml(user.name_first)} ${escapeHtml(user.name_last)}</td>
+                <td class="text-center"><span class="status-indicator ${statusClass}" aria-label="${statusLabel}" title="${statusLabel}"></span></td>
+                <td><span class="badge text-bg-light border">${escapeHtml(user.role)}</span></td>
+                <td class="text-end">
+                    <button type="button" class="btn my-2 my-md-0 btn-sm btn-outline-primary js-edit-user" data-user-id="${user.id}" aria-label="Edit user">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="btn my-2 my-md-0 btn-sm btn-outline-danger js-delete-user" data-user-id="${user.id}" aria-label="Delete user">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                </td>
+            </tr>`;
+    }
+
+    function updateUserCount() {
+        const count = $('.js-user-checkbox').length;
+        $('#user-count').text(`${count} ${count === 1 ? 'user' : 'users'}`);
+    }
+
+    function showNoUsersRow() {
+        $tableBody.html('<tr><td colspan="5" class="py-5 text-center text-body-secondary">No users found.</td></tr>');
+        updateUserCount();
+    }
+
+    function getUserRow(id) {
+        return $tableBody.find(`tr[data-user-id="${id}"]`);
+    }
+
+    function removeUserRow(id) {
+        const row = getUserRow(id);
+        if (row.length) {
+            row.remove();
+            selectedUserIds.delete(Number(id));
         }
+        if ($('.js-user-checkbox').length === 0) {
+            showNoUsersRow();
+            $selectAll.prop({ checked: false, indeterminate: false });
+        }
+        updateUserCount();
+        updateSelectAllState();
+    }
 
-        $tableBody.html(users.map((user) => {
-            const statusClass = user.status ? 'is-active' : 'is-inactive';
-            const statusLabel = user.status ? 'Active' : 'Not active';
+    function replaceUserRow(user) {
+        const row = getUserRow(user.id);
+        const checked = row.find('.js-user-checkbox').prop('checked');
+        if (row.length) {
+            row.replaceWith(buildUserRow(user, checked));
+        } else {
+            $tableBody.append(buildUserRow(user));
+        }
+        updateUserCount();
+        updateSelectAllState();
+    }
 
-            return `
-                <tr data-user-id="${user.id}">
-                    <td>
-                        <input class="form-check-input js-user-checkbox" type="checkbox" value="${user.id}" aria-label="Select ${escapeHtml(user.name_first)} ${escapeHtml(user.name_last)}">
-                    </td>
-                    <td>${escapeHtml(user.name_first)} ${escapeHtml(user.name_last)}</td>
-                    <td class="text-center"><span class="status-indicator ${statusClass}" aria-label="${statusLabel}" title="${statusLabel}"></span></td>
-                    <td><span class="badge text-bg-light border">${escapeHtml(user.role)}</span></td>
-                    <td class="text-end">
-                        <button type="button" class="btn my-2 my-md-0 btn-sm btn-outline-primary js-edit-user" data-user-id="${user.id}" aria-label="Edit user">
-                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                        </button>
-                        <button type="button" class="btn my-2 my-md-0  btn-sm btn-outline-danger js-delete-user" data-user-id="${user.id}" aria-label="Delete user">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                        </button>
-                    </td>
-                </tr>`;
-        }).join(''));
+    function addUserRow(user) {
+        const noUsersRow = $tableBody.find('td[colspan="5"]');
+        if (noUsersRow.length) {
+            $tableBody.html(buildUserRow(user));
+        } else {
+            $tableBody.append(buildUserRow(user));
+        }
+        updateUserCount();
+        updateSelectAllState();
     }
 
     function clearFormErrors() {
@@ -144,24 +184,6 @@ $(function () {
         });
     }
 
-    function loadUsers() {
-        $tableBody.html('<tr><td colspan="5" class="py-5 text-center text-body-secondary">Loading users…</td></tr>');
-
-        $.getJSON('/api/users')
-            .done((response) => {
-                if (!response.status) {
-                    showMessage('danger', response.error.message);
-                    return;
-                }
-
-                renderUsers(response.users);
-            })
-            .fail((xhr) => {
-                const response = xhr.responseJSON;
-                showMessage('danger', response?.error?.message || 'Unable to load users.');
-                $tableBody.html('<tr><td colspan="5" class="py-5 text-center text-danger">Unable to load users.</td></tr>');
-            });
-    }
 
     function executeBulkAction($button, action, ids) {
         $button.prop('disabled', true);
@@ -177,7 +199,23 @@ $(function () {
             }
 
             showMessage('success', `Updated ${response.affected} user(s).`);
-            loadUsers();
+            if (action === 'delete') {
+                ids.forEach((id) => removeUserRow(id));
+                $selectAll.prop({ checked: false, indeterminate: false });
+            } else {
+                const isActive = action === 'set_active';
+                ids.forEach((id) => {
+                    const row = getUserRow(id);
+                    if (!row.length) {
+                        return;
+                    }
+                    const statusIndicator = row.find('.status-indicator');
+                    const statusLabel = isActive ? 'Active' : 'Not active';
+                    statusIndicator.toggleClass('is-active', isActive);
+                    statusIndicator.toggleClass('is-inactive', !isActive);
+                    statusIndicator.attr('aria-label', statusLabel).attr('title', statusLabel);
+                });
+            }
         }).fail((xhr) => {
             const response = xhr.responseJSON;
             showMessage('danger', response?.error?.message || 'Unable to apply the bulk action.');
@@ -225,7 +263,8 @@ $(function () {
                 }
 
                 showMessage('success', 'User deleted.');
-                loadUsers();
+                removeUserRow(id);
+                $selectAll.prop({ checked: false, indeterminate: false });
             }).fail((xhr) => {
                 const response = xhr.responseJSON;
                 showMessage('danger', response?.error?.message || 'Unable to delete the user.');
@@ -318,9 +357,23 @@ $(function () {
                 return;
             }
 
+            const savedUser = {
+                id: isEditing ? Number(id) : response.id,
+                name_first: payload.name_first,
+                name_last: payload.name_last,
+                status: payload.status,
+                role: payload.role,
+            };
+
+            if (isEditing) {
+                replaceUserRow(savedUser);
+                showMessage('success', 'User updated.');
+            } else {
+                addUserRow(savedUser);
+                showMessage('success', 'User added.');
+            }
+
             $userModal.hide();
-            showMessage('success', isEditing ? 'User updated.' : 'User added.');
-            loadUsers();
         }).fail((xhr) => {
             const response = xhr.responseJSON;
             if (response?.error?.fields) {
@@ -332,6 +385,4 @@ $(function () {
             $saveButton.prop('disabled', false);
         });
     });
-
-    loadUsers();
 });

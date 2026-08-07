@@ -12,7 +12,7 @@
 <main class="container py-5">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <h1 class="h2 mb-0">User management</h1>
-        <span id="user-count" class="badge text-bg-secondary">0 users</span>
+        <span id="user-count" class="badge text-bg-secondary">{{ userCount }} {{ userCount == 1 ? 'user' : 'users' }}</span>
     </div>
 
     <div id="app-message" aria-live="polite"></div>
@@ -35,9 +35,32 @@
                     </tr>
                     </thead>
                     <tbody id="users-table-body">
-                    <tr>
-                        <td colspan="5" class="py-5 text-center text-body-secondary">Loading users…</td>
-                    </tr>
+                    {% if users is empty %}
+                        <tr>
+                            <td colspan="5" class="py-5 text-center text-body-secondary">No users found.</td>
+                        </tr>
+                    {% else %}
+                        {% for user in users %}
+                            <tr data-user-id="{{ user.id }}">
+                                <td>
+                                    <input class="form-check-input js-user-checkbox" type="checkbox" value="{{ user.id }}" aria-label="Select {{ user.name_first|e }} {{ user.name_last|e }}">
+                                </td>
+                                <td>{{ user.name_first|e }} {{ user.name_last|e }}</td>
+                                <td class="text-center">
+                                    <span class="status-indicator {{ user.status ? 'is-active' : 'is-inactive' }}" aria-label="{{ user.status ? 'Active' : 'Not active' }}" title="{{ user.status ? 'Active' : 'Not active' }}"></span>
+                                </td>
+                                <td><span class="badge text-bg-light border">{{ user.role|e }}</span></td>
+                                <td class="text-end">
+                                    <button type="button" class="btn my-2 my-md-0 btn-sm btn-outline-primary js-edit-user" data-user-id="{{ user.id }}" aria-label="Edit user">
+                                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="btn my-2 my-md-0 btn-sm btn-outline-danger js-delete-user" data-user-id="{{ user.id }}" aria-label="Delete user">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
                     </tbody>
                 </table>
             </div>
