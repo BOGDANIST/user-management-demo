@@ -201,7 +201,6 @@ $(function () {
             showMessage('success', `Updated ${response.affected} user(s).`);
             if (action === 'delete') {
                 ids.forEach((id) => removeUserRow(id));
-                $selectAll.prop({ checked: false, indeterminate: false });
             } else {
                 const isActive = action === 'set_active';
                 ids.forEach((id) => {
@@ -216,6 +215,11 @@ $(function () {
                     statusIndicator.attr('aria-label', statusLabel).attr('title', statusLabel);
                 });
             }
+
+            selectedUserIds.clear();
+            $('.js-user-checkbox').prop('checked', false);
+            $selectAll.prop({ checked: false, indeterminate: false });
+            updateSelectAllState();
         }).fail((xhr) => {
             const response = xhr.responseJSON;
             showMessage('danger', response?.error?.message || 'Unable to apply the bulk action.');
